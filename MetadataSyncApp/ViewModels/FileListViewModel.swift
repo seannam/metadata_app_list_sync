@@ -3,6 +3,7 @@ import CoreData
 import SwiftUI
 
 enum SortOption: String, CaseIterable {
+    case manual = "Manual"
     case name = "Name"
     case modifiedDate = "Modified"
     case createdDate = "Created"
@@ -11,6 +12,8 @@ enum SortOption: String, CaseIterable {
 
     var sortDescriptor: NSSortDescriptor {
         switch self {
+        case .manual:
+            return NSSortDescriptor(keyPath: \FileItem.displayOrder, ascending: true)
         case .name:
             return NSSortDescriptor(keyPath: \FileItem.name, ascending: true)
         case .modifiedDate:
@@ -96,5 +99,21 @@ class FileListViewModel: ObservableObject {
             var error: NSDictionary?
             appleScript.executeAndReturnError(&error)
         }
+    }
+
+    var isManualSortEnabled: Bool {
+        sortOption == .manual
+    }
+
+    func moveItems(from source: IndexSet, to destination: Int, in items: inout [FileItem]) {
+        guard sortOption == .manual else { return }
+
+        items.move(fromOffsets: source, toOffset: destination)
+
+        for (index, item) in items.enumerated() {
+            item.displayOrder = Int32(index)
+        }
+
+        persistenceController.save()
     }
 }

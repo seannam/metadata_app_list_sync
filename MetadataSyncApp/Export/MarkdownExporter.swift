@@ -3,7 +3,7 @@ import AppKit
 import UniformTypeIdentifiers
 
 class MarkdownExporter {
-    func export(items: [FileItem], directoryName: String, directoryPath: String) -> String {
+    func export(items: [FileItem], directoryName: String, directoryPath: String, preserveOrder: Bool = false) -> String {
         var md = "# Tracked Files - \(directoryName)\n\n"
         md += "> Path: `\(directoryPath)`\n\n"
         md += "> Exported: \(Date().formatted(date: .long, time: .shortened))\n\n"
@@ -12,44 +12,26 @@ class MarkdownExporter {
         dateFormatter.dateStyle = .medium
         dateFormatter.timeStyle = .none
 
-        // Group by priority
-        let priorityGroups = Dictionary(grouping: items) { $0.priority }
-        let sortedPriorities = priorityGroups.keys.sorted(by: >)
+        if preserveOrder {
+            // Export items in the order they were passed (preserves manual sort)
+            md += "## Items\n\n"
+            for item in items {
+                md += formatItem(item, dateFormatter: dateFormatter)
+            }
+        } else {
+            // Group by priority
+            let priorityGroups = Dictionary(grouping: items) { $0.priority }
+            let sortedPriorities = priorityGroups.keys.sorted(by: >)
 
-        for priority in sortedPriorities {
-            guard let groupItems = priorityGroups[priority] else { continue }
+            for priority in sortedPriorities {
+                guard let groupItems = priorityGroups[priority] else { continue }
 
-            let priorityLabel = priorityLabel(for: priority)
-            md += "## \(priorityLabel)\n\n"
+                let priorityLabel = priorityLabel(for: priority)
+                md += "## \(priorityLabel)\n\n"
 
-            for item in groupItems.sorted(by: { ($0.name ?? "") < ($1.name ?? "") }) {
-                let icon = item.isDirectory ? "📁" : "📄"
-                let name = item.name ?? "Unknown"
-                let path = item.path ?? ""
-
-                md += "- **\(icon) \(name)**"
-
-                if item.isGitRepo {
-                    let gitStatus = item.hasUncommittedChanges ? "dirty" : "clean"
-                    md += " `git: \(gitStatus)`"
+                for item in groupItems.sorted(by: { ($0.name ?? "") < ($1.name ?? "") }) {
+                    md += formatItem(item, dateFormatter: dateFormatter)
                 }
-
-                md += "\n"
-                md += "  - Path: `\(path)`\n"
-
-                if let modified = item.modifiedAt {
-                    md += "  - Modified: \(dateFormatter.string(from: modified))\n"
-                }
-
-                if !item.isDirectory {
-                    md += "  - Size: \(formatSize(item.fileSize))\n"
-                }
-
-                if let notes = item.notes, !notes.isEmpty {
-                    md += "  - Notes: \(notes)\n"
-                }
-
-                md += "\n"
             }
         }
 
@@ -66,6 +48,42 @@ class MarkdownExporter {
             md += "- Repos with uncommitted changes: \(withChanges)\n"
         }
 
+        return md
+    }
+
+    private func formatItem(_ item: FileItem, dateFormatter: DateFormatter) -> String {
+        var md = ""
+        let icon = item.isDirectory ? "📁" : "📄"
+        let name = item.name ?? "Unknown"
+        let path = item.path ?? ""
+
+        md += "- **\(icon) \(name)**"
+
+        if item.isGitRepo {
+            let gitStatus = item.hasUncommittedChanges ? "dirty" : "clean"
+            md += " `git: \(gitStatus)`"
+        }
+
+        md += "\n"
+        md += "  - Path: `\(path)`\n"
+
+        if let modified = item.modifiedAt {
+            md += "  - Modified: \(dateFormatter.string(from: modified))\n"
+        }
+
+        if !item.isDirectory {
+            md += "  - Size: \(formatSize(item.fileSize))\n"
+        }
+
+        if item.priority > 0 {
+            md += "  - Priority: \(String(repeating: "★", count: Int(item.priority)))\n"
+        }
+
+        if let notes = item.notes, !notes.isEmpty {
+            md += "  - Notes: \(notes)\n"
+        }
+
+        md += "\n"
         return md
     }
 
@@ -86,8 +104,8 @@ class MarkdownExporter {
         return formatter.string(fromByteCount: bytes)
     }
 
-    func saveToFile(items: [FileItem], directoryName: String, directoryPath: String) -> URL? {
-        let content = export(items: items, directoryName: directoryName, directoryPath: directoryPath)
+    func saveToFile(items: [FileItem], directoryName: String, directoryPath: String, preserveOrder: Bool = false) -> URL? {
+        let content = export(items: items, directoryName: directoryName, directoryPath: directoryPath, preserveOrder: preserveOrder)
 
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.plainText]

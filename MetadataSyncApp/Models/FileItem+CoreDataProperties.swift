@@ -8,6 +8,7 @@ extension FileItem {
 
     @NSManaged public var accessedAt: Date?
     @NSManaged public var createdAt: Date?
+    @NSManaged public var displayOrder: Int32
     @NSManaged public var fileSize: Int64
     @NSManaged public var hasUncommittedChanges: Bool
     @NSManaged public var id: UUID?

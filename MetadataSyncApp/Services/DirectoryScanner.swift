@@ -57,6 +57,9 @@ class DirectoryScanner {
                 return (path, item)
             })
 
+            // Get max displayOrder for assigning to new items
+            var maxDisplayOrder = existingItems.map { $0.displayOrder }.max() ?? -1
+
             let total = urls.count
             var processedPaths = Set<String>()
 
@@ -78,6 +81,8 @@ class DirectoryScanner {
                     fileItem.id = UUID()
                     fileItem.path = itemPath
                     fileItem.directory = dir
+                    maxDisplayOrder += 1
+                    fileItem.displayOrder = maxDisplayOrder
                 }
 
                 fileItem.name = resourceValues?.name ?? url.lastPathComponent
@@ -142,10 +147,17 @@ class DirectoryScanner {
                 if let existing = existingItems.first {
                     fileItem = existing
                 } else {
+                    // Fetch max displayOrder for the directory
+                    let orderFetch: NSFetchRequest<FileItem> = FileItem.fetchRequest()
+                    orderFetch.predicate = NSPredicate(format: "directory == %@", dir)
+                    let allItems = try backgroundContext.fetch(orderFetch)
+                    let maxOrder = allItems.map { $0.displayOrder }.max() ?? -1
+
                     fileItem = FileItem(context: backgroundContext)
                     fileItem.id = UUID()
                     fileItem.path = path
                     fileItem.directory = dir
+                    fileItem.displayOrder = maxOrder + 1
                 }
 
                 fileItem.name = resourceValues?.name ?? url.lastPathComponent

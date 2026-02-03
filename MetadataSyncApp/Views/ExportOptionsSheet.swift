@@ -7,6 +7,7 @@ struct ExportOptionsSheet: View {
 
     @State private var exportFormat: ExportFormat = .csv
     @State private var includeAllItems = true
+    @State private var preserveCurrentOrder = true
     @State private var exportedURL: URL?
     @State private var showSuccess = false
 
@@ -52,8 +53,15 @@ struct ExportOptionsSheet: View {
             }
 
             GroupBox("Options") {
-                Toggle("Include all \(items.count) items", isOn: $includeAllItems)
-                    .padding(.vertical, 4)
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("Include all \(items.count) items", isOn: $includeAllItems)
+
+                    if exportFormat == .markdown {
+                        Toggle("Preserve current sort order", isOn: $preserveCurrentOrder)
+                            .help("When enabled, items are exported in their current order instead of being grouped by priority")
+                    }
+                }
+                .padding(.vertical, 4)
             }
 
             if showSuccess, let url = exportedURL {
@@ -101,7 +109,7 @@ struct ExportOptionsSheet: View {
             }
         case .markdown:
             let exporter = MarkdownExporter()
-            if let url = exporter.saveToFile(items: itemsToExport, directoryName: dirName, directoryPath: dirPath) {
+            if let url = exporter.saveToFile(items: itemsToExport, directoryName: dirName, directoryPath: dirPath, preserveOrder: preserveCurrentOrder) {
                 exportedURL = url
                 showSuccess = true
             }

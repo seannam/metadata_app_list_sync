@@ -7,6 +7,7 @@ struct FileListView: View {
 
     @FetchRequest private var items: FetchedResults<FileItem>
     @State private var showExportSheet = false
+    @State private var localItems: [FileItem] = []
 
     init(directory: TrackedDirectory, viewModel: FileListViewModel) {
         self.directory = directory
@@ -17,6 +18,13 @@ struct FileListView: View {
             predicate: NSPredicate(format: "directory == %@", directory),
             animation: .default
         )
+    }
+
+    private var canReorder: Bool {
+        viewModel.isManualSortEnabled &&
+        viewModel.searchText.isEmpty &&
+        !viewModel.showDirectoriesOnly &&
+        !viewModel.showGitReposOnly
     }
 
     var body: some View {
@@ -65,32 +73,44 @@ struct FileListView: View {
             Divider()
 
             // File list
-            List(filteredItems, id: \.self, selection: $viewModel.selectedItem) { item in
-                FileRow(item: item)
-                    .tag(item)
-                    .contextMenu {
-                        Button("Open in Finder") {
-                            viewModel.openInFinder(item)
-                        }
-
-                        if item.isDirectory {
-                            Button("Open in Terminal") {
-                                viewModel.openInTerminal(item)
+            List(selection: $viewModel.selectedItem) {
+                ForEach(filteredItems, id: \.self) { item in
+                    FileRow(item: item)
+                        .tag(item)
+                        .contextMenu {
+                            Button("Open in Finder") {
+                                viewModel.openInFinder(item)
                             }
-                        }
 
-                        Divider()
+                            if item.isDirectory {
+                                Button("Open in Terminal") {
+                                    viewModel.openInTerminal(item)
+                                }
+                            }
 
-                        Menu("Set Priority") {
-                            ForEach(0...5, id: \.self) { priority in
-                                Button(priority == 0 ? "None" : String(repeating: "★", count: priority)) {
-                                    viewModel.updatePriority(item, priority: Int16(priority))
+                            Divider()
+
+                            Menu("Set Priority") {
+                                ForEach(0...5, id: \.self) { priority in
+                                    Button(priority == 0 ? "None" : String(repeating: "★", count: priority)) {
+                                        viewModel.updatePriority(item, priority: Int16(priority))
+                                    }
                                 }
                             }
                         }
-                    }
+                }
+                .onMove(perform: canReorder ? moveItems : nil)
             }
             .listStyle(.inset)
+            .onChange(of: viewModel.sortOption) { _, newValue in
+                items.nsSortDescriptors = [newValue.sortDescriptor]
+            }
+            .onChange(of: items.count) { _, _ in
+                localItems = Array(items)
+            }
+            .onAppear {
+                localItems = Array(items)
+            }
 
             // Status bar
             HStack {
@@ -131,6 +151,12 @@ struct FileListView: View {
         }
 
         return result
+    }
+
+    private func moveItems(from source: IndexSet, to destination: Int) {
+        var mutableItems = filteredItems
+        viewModel.moveItems(from: source, to: destination, in: &mutableItems)
+        localItems = mutableItems
     }
 }
 
