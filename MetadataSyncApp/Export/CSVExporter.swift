@@ -4,23 +4,12 @@ import UniformTypeIdentifiers
 
 class CSVExporter {
     func export(items: [FileItem], directoryName: String) -> String {
-        var csv = "Name,Path,Type,Size,Created,Modified,Priority,Notes,Git Repo,Has Changes\n"
-
-        let dateFormatter = ISO8601DateFormatter()
+        var csv = "Name,Type\n"
 
         for item in items {
             let name = escapeCSV(item.name ?? "")
-            let path = escapeCSV(item.path ?? "")
             let type = item.isDirectory ? "Directory" : "File"
-            let size = item.isDirectory ? "" : formatSize(item.fileSize)
-            let created = item.createdAt.map { dateFormatter.string(from: $0) } ?? ""
-            let modified = item.modifiedAt.map { dateFormatter.string(from: $0) } ?? ""
-            let priority = item.priority > 0 ? String(item.priority) : ""
-            let notes = escapeCSV(item.notes ?? "")
-            let gitRepo = item.isGitRepo ? "Yes" : "No"
-            let hasChanges = item.isGitRepo ? (item.hasUncommittedChanges ? "Yes" : "No") : ""
-
-            csv += "\(name),\(path),\(type),\(size),\(created),\(modified),\(priority),\(notes),\(gitRepo),\(hasChanges)\n"
+            csv += "\(name),\(type)\n"
         }
 
         return csv
@@ -42,17 +31,14 @@ class CSVExporter {
     func saveToFile(items: [FileItem], directoryName: String) -> URL? {
         let content = export(items: items, directoryName: directoryName)
 
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.commaSeparatedText]
-        panel.nameFieldStringValue = "\(directoryName)-export.csv"
-        panel.message = "Choose where to save the CSV export"
-
-        guard panel.runModal() == .OK, let url = panel.url else {
-            return nil
-        }
+        let desktopURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!
+        let timestamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        let filename = "\(directoryName)-export-\(timestamp).csv"
+        let url = desktopURL.appendingPathComponent(filename)
 
         do {
             try content.write(to: url, atomically: true, encoding: .utf8)
+            NSWorkspace.shared.activateFileViewerSelecting([url])
             return url
         } catch {
             print("Error saving CSV: \(error)")

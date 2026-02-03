@@ -6,8 +6,6 @@ struct ExportOptionsSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var exportFormat: ExportFormat = .csv
-    @State private var includeAllItems = true
-    @State private var preserveCurrentOrder = true
     @State private var exportedURL: URL?
     @State private var showSuccess = false
 
@@ -52,18 +50,6 @@ struct ExportOptionsSheet: View {
                 .padding(.vertical, 4)
             }
 
-            GroupBox("Options") {
-                VStack(alignment: .leading, spacing: 8) {
-                    Toggle("Include all \(items.count) items", isOn: $includeAllItems)
-
-                    if exportFormat == .markdown {
-                        Toggle("Preserve current sort order", isOn: $preserveCurrentOrder)
-                            .help("When enabled, items are exported in their current order instead of being grouped by priority")
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-
             if showSuccess, let url = exportedURL {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
@@ -96,20 +82,19 @@ struct ExportOptionsSheet: View {
     }
 
     private func performExport() {
-        let itemsToExport = includeAllItems ? items : items.filter { $0.priority > 0 }
         let dirName = directory.name ?? "export"
         let dirPath = directory.path ?? ""
 
         switch exportFormat {
         case .csv:
             let exporter = CSVExporter()
-            if let url = exporter.saveToFile(items: itemsToExport, directoryName: dirName) {
+            if let url = exporter.saveToFile(items: items, directoryName: dirName) {
                 exportedURL = url
                 showSuccess = true
             }
         case .markdown:
             let exporter = MarkdownExporter()
-            if let url = exporter.saveToFile(items: itemsToExport, directoryName: dirName, directoryPath: dirPath, preserveOrder: preserveCurrentOrder) {
+            if let url = exporter.saveToFile(items: items, directoryName: dirName, directoryPath: dirPath) {
                 exportedURL = url
                 showSuccess = true
             }
