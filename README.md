@@ -2,6 +2,11 @@
 
 A native macOS application for monitoring and managing file/directory metadata. Track directories, view file information, manage git repository status, and organize items with tags and priorities.
 
+## WARNING
+
+This app was written by Claude Code with minimal oversight. It has not been thoroughly tested. 
+Please proceed with caution. It is a one-time utility I created and it did not turn out the way I envisioned.
+
 ## Requirements
 
 - macOS 14.0+
