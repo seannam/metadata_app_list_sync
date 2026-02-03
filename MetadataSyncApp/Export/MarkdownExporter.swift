@@ -3,24 +3,39 @@ import AppKit
 import UniformTypeIdentifiers
 
 class MarkdownExporter {
-    func export(items: [FileItem], directoryName: String, directoryPath: String, preserveOrder: Bool = false) -> String {
-        var md = "# \(directoryName)\n\n"
+    func export(items: [FileItem], directoryName: String, options: ExportOptions) -> String {
+        var lines: [String] = []
 
-        for item in items {
-            let icon = item.isDirectory ? "📁" : "📄"
-            let name = item.name ?? "Unknown"
-            md += "- \(icon) \(name)\n"
+        if options.showHeader {
+            lines.append("# \(directoryName)")
+            lines.append("")
         }
 
-        return md
+        for item in items {
+            var line = ""
+
+            if options.showBullets {
+                line += "- "
+            }
+
+            if options.showEmojis {
+                let icon = item.isDirectory ? "📁 " : "📄 "
+                line += icon
+            }
+
+            line += item.name ?? "Unknown"
+            lines.append(line)
+        }
+
+        return lines.joined(separator: "\n")
     }
 
-    func saveToFile(items: [FileItem], directoryName: String, directoryPath: String, preserveOrder: Bool = false) -> URL? {
-        let content = export(items: items, directoryName: directoryName, directoryPath: directoryPath, preserveOrder: preserveOrder)
+    func saveToFile(items: [FileItem], directoryName: String, options: ExportOptions) -> URL? {
+        let content = export(items: items, directoryName: directoryName, options: options)
 
         let desktopURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!
         let timestamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
-        let filename = "\(directoryName)-export-\(timestamp).md"
+        let filename = "\(directoryName)-export-\(timestamp).txt"
         let url = desktopURL.appendingPathComponent(filename)
 
         do {

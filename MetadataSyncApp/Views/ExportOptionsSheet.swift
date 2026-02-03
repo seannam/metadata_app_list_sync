@@ -1,54 +1,81 @@
 import SwiftUI
 
+struct ExportOptions {
+    var includeFolders = true
+    var includeFiles = true
+    var showEmojis = false
+    var showBullets = false
+    var showHeader = false
+}
+
 struct ExportOptionsSheet: View {
     let directory: TrackedDirectory
     let items: [FileItem]
     @Environment(\.dismiss) private var dismiss
 
-    @State private var exportFormat: ExportFormat = .csv
+    @State private var exportFormat: ExportFormat = .markdown
+    @State private var options = ExportOptions()
     @State private var exportedURL: URL?
     @State private var showSuccess = false
 
     enum ExportFormat: String, CaseIterable {
+        case markdown = "Plain Text"
         case csv = "CSV"
-        case markdown = "Markdown"
 
         var description: String {
             switch self {
-            case .csv: return "Comma-separated values, great for importing into Notion databases or spreadsheets"
-            case .markdown: return "Formatted text with headings and lists, great for Notion pages or documentation"
+            case .markdown: return "Simple list of names"
+            case .csv: return "Comma-separated with type column"
             }
         }
     }
 
+    private var filteredItems: [FileItem] {
+        items.filter { item in
+            if item.isDirectory && !options.includeFolders { return false }
+            if !item.isDirectory && !options.includeFiles { return false }
+            return true
+        }
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Export Files")
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Export")
                 .font(.title2)
                 .fontWeight(.bold)
 
             GroupBox("Format") {
-                VStack(alignment: .leading, spacing: 12) {
+                Picker("Format", selection: $exportFormat) {
                     ForEach(ExportFormat.allCases, id: \.self) { format in
-                        HStack(alignment: .top) {
-                            Image(systemName: exportFormat == format ? "checkmark.circle.fill" : "circle")
-                                .foregroundColor(exportFormat == format ? .accentColor : .secondary)
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(format.rawValue)
-                                    .fontWeight(.medium)
-                                Text(format.description)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .onTapGesture {
-                            exportFormat = format
-                        }
+                        Text(format.rawValue).tag(format)
                     }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
+
+            GroupBox("Filter") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("Include folders", isOn: $options.includeFolders)
+                    Toggle("Include files", isOn: $options.includeFiles)
                 }
                 .padding(.vertical, 4)
             }
+
+            if exportFormat == .markdown {
+                GroupBox("Formatting") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Show header", isOn: $options.showHeader)
+                        Toggle("Show bullets (-)", isOn: $options.showBullets)
+                        Toggle("Show icons", isOn: $options.showEmojis)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
+            Text("\(filteredItems.count) items will be exported")
+                .font(.caption)
+                .foregroundColor(.secondary)
 
             if showSuccess, let url = exportedURL {
                 HStack {
@@ -83,18 +110,17 @@ struct ExportOptionsSheet: View {
 
     private func performExport() {
         let dirName = directory.name ?? "export"
-        let dirPath = directory.path ?? ""
 
         switch exportFormat {
         case .csv:
             let exporter = CSVExporter()
-            if let url = exporter.saveToFile(items: items, directoryName: dirName) {
+            if let url = exporter.saveToFile(items: filteredItems, directoryName: dirName) {
                 exportedURL = url
                 showSuccess = true
             }
         case .markdown:
             let exporter = MarkdownExporter()
-            if let url = exporter.saveToFile(items: items, directoryName: dirName, directoryPath: dirPath) {
+            if let url = exporter.saveToFile(items: filteredItems, directoryName: dirName, options: options) {
                 exportedURL = url
                 showSuccess = true
             }
